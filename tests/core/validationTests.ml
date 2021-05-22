@@ -16,6 +16,9 @@ module JsonStreamSexp = struct
     | `Infinity | `Neg_infinity | `Nan ] list [@@deriving sexp]
 end
 
+let regexp_nan = Str.regexp_string "__NAN__"
+let string_nan = String.uppercase_ascii (string_of_float (0.0/.0.0))
+
 let read_json_sexp inc =
   let l = input_line inc in
   let p = Utils.split_string '\t' l in
@@ -24,6 +27,9 @@ let read_json_sexp inc =
     | bt::jv::[] -> (bt, jv, "", "")
     | _ -> Utils.die ("invalid test line: " ^ l)
   in
+  (* Replace __NAN__ with the architecture specific version *)
+  let sexps = Str.global_replace regexp_nan string_nan sexps in
+  let sexps_json_stream = Str.global_replace regexp_nan string_nan sexps_json_stream in
   (bits, jsons, sexps, sexps_json_stream)
 
 let output_validation_config bits jsons json json_stream =
