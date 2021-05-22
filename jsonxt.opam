@@ -8,7 +8,7 @@ dev-repo: "https://github.com/stevebleazard/ocaml-jsonxt.git"
 doc: "https://stevebleazard.github.io/ocaml-jsonxt/"
 synopsis: "JSON parsers parsers for string, files and more"
 build: [
-  ["dune" "subst"] {pinned & dev}
+  ["dune" "subst"] {dev}
   ["dune" "build" "-p" name "-j" jobs]
   ["dune" "build" "-p" name "-j" jobs "@runtest"] {with-test}
   ["dune" "build" "-p" name "-j" jobs "@doc"] {with-doc}
