@@ -16,7 +16,7 @@ build: [
 
 depends: [
   "ocaml"               {>= "4.03.0"}
-  "dune"                {>= "2.0" & build}
+  "dune"                {>= "2.0"}
   "alcotest"            {with-test}
   "cmdliner"            {with-test}
   "core_kernel"         {with-test}
