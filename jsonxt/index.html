@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>index (jsonxt.index)</title><link rel="stylesheet" href="../odoc.css"/><meta charset="utf-8"/><meta name="generator" content="odoc 1.5.2"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body><div class="content"><header><nav><a href="../index.html">Up</a> – jsonxt</nav><nav class="toc"><ul><li><a href="#json-parsers-for-files,-strings-and-more">JSON parsers for files, strings and more</a><ul><li><a href="#api-documentation">API Documentation</a></li><li><a href="#quick-start">Quick Start</a><ul><li><a href="#convert-a-string-and-print-the-internal-representation">Convert a string and print the internal representation</a></li><li><a href="#reading-a-file-and-printing-to-stdout">Reading a file and printing to stdout</a></li><li><a href="#using-the-json_stream-parser">Using the json_stream parser</a></li><li><a href="#reading-and-writing-a-file-using-the-monadic-functions">Reading and writing a file using the monadic functions</a></li><li><a href="#yojson-compatibility">Yojson compatibility</a></li><li><a href="#using-ppx_yojson_conv">Using ppx_yojson_conv</a></li><li><a href="#async-example">Async example</a></li></ul></li><li><a href="#performance">Performance</a></li></ul></li></ul></nav></header><h2 id="json-parsers-for-files,-strings-and-more"><a href="#json-parsers-for-files,-strings-and-more" class="anchor"></a>JSON parsers for files, strings and more</h2><p>Jsonxt provides a number JSON parsers and writers with a focus on performance especially for the core file and string functions</p><h3 id="api-documentation"><a href="#api-documentation" class="anchor"></a>API Documentation</h3><ul><li>See the <a href="Jsonxt/index.html"><code>Jsonxt</code></a> API documentation for detailed module and function documentation</li></ul><h3 id="quick-start"><a href="#quick-start" class="anchor"></a>Quick Start</h3><p>The following covers various use cases</p><h4 id="convert-a-string-and-print-the-internal-representation"><a href="#convert-a-string-and-print-the-internal-representation" class="anchor"></a>Convert a string and print the internal representation</h4><pre><code class="ml">let () =
+  let json = Jsonxt.Basic.of_string &quot;[1,2,3]&quot; in
+  print_endline (Jsonxt.Utilities.json_to_string_repr json);;</code></pre><h4 id="reading-a-file-and-printing-to-stdout"><a href="#reading-a-file-and-printing-to-stdout" class="anchor"></a>Reading a file and printing to stdout</h4><pre><code class="ml">let () = 
+  let json = Jsonxt.Basic.of_file &quot;test.json&quot; in
+  Jsonxt.Basic.to_channel_hum stdout json;;</code></pre><h4 id="using-the-json_stream-parser"><a href="#using-the-json_stream-parser" class="anchor"></a>Using the json_stream parser</h4><p>The json_stream parser returns a stream of json elements rather than a json tree. The following is example using the <code>Stream.t</code> interface to process the stream</p><pre><code class="ml">open Printf
+
+let parse_stream_string s =
+  let stream = Jsonxt.Basic_stream.stream_from_string s in
+  Stream.iter
+    (fun el -&gt;
+     let s = Jsonxt.Utilities.json_stream_to_string_repr el in
+     printf &quot;%s &quot; s)
+    stream;
+  printf &quot;\n&quot;
+
+let () =
+    let json_s = {| [ { &quot;id&quot;:10, &quot;str&quot;:&quot;foo&quot; }, { &quot;id&quot;:11, &quot;str&quot;:&quot;bar&quot; } ] |} in
+    parse_stream_string json_s;;</code></pre><h4 id="reading-and-writing-a-file-using-the-monadic-functions"><a href="#reading-and-writing-a-file-using-the-monadic-functions" class="anchor"></a>Reading and writing a file using the monadic functions</h4><pre><code class="ml">module IO = struct
+  type 'a t = 'a
+
+  let return v = v
+  let (&gt;&gt;=) v f = f v
+end
+
+module JsonIO = Jsonxt.Basic_monad.Make(IO)
+open IO
+
+let _ =
+  let ic = open_in &quot;test.json&quot; in
+  let reader buf len = return (input ic buf 0 len) in
+  let writer s = return (output_string stdout s) in
+  JsonIO.read_json ~reader ()
+  &gt;&gt;= function
+    | Error err -&gt; print_endline (&quot;ERROR: &quot; ^ err); return ()
+    | Ok json -&gt; JsonIO.write_json_hum ~writer json
+;;</code></pre><h4 id="yojson-compatibility"><a href="#yojson-compatibility" class="anchor"></a>Yojson compatibility</h4><p>To use Jsonxt's Yojson compatibility module create a <code>yojson.ml</code> file in the project's source directory with the following contents:</p><pre><code class="ml">include Jsonxt.Yojson</code></pre><p>Note that compatibility is mostly a thin layer on top of Jsonxt. In particular the error reporting by the utils module uses the <code>Failure</code> exception rather than Yojson's specialist exceptions. See the <a href="Jsonxt/Yojson/index.html"><code>Jsonxt.Yojson</code></a> module API documentation for more details</p><h4 id="using-ppx_yojson_conv"><a href="#using-ppx_yojson_conv" class="anchor"></a>Using ppx_yojson_conv</h4><p>The following is an example using ppx_yojson_conv:</p><pre><code class="ml">module Item = struct
+  type t = {
+    str : string
+  ; cost : float
+  } [@@deriving yojson]
+end
+
+module Stock = struct
+  type t = {
+    desc : string
+  ; inventory : int
+  ; backorder : int option
+  ; items : Item.t list
+  } [@@deriving yojson]
+end
+
+let () =
+  let item1 = { Item.str = &quot;Store Baked Beans&quot;; cost = 1.22 } in
+  let item2 = { Item.str = &quot;Branded Baked Beans&quot;; cost = 1.47 } in
+  let stock = { Stock.desc = &quot;Beans&quot;; inventory = 2; backorder = Some 3; items = [item1; item2] } in
+  let json = Stock.yojson_of_t stock in
+  print_endline (Yojson.Safe.show json);
+  print_endline (Yojson.Safe.pretty_to_string json);</code></pre><h4 id="async-example"><a href="#async-example" class="anchor"></a>Async example</h4><p>An example of how to use the monad based parser and writer with async. Note that async and core libraries need to be installed.</p><pre><code class="ml">open Core
+open Async
+
+module Json_async = struct
+  module Json_of_async = Jsonxt.Basic_monad.Make(struct
+      type 'a t = 'a Deferred.t
+
+      let return = Deferred.return
+      let (&gt;&gt;=) = Deferred.Monad_infix.(&gt;&gt;=)
+    end)
+
+
+  let reader inc buf size =
+    Reader.read inc ~len:size buf
+    &gt;&gt;= function
+    | `Eof -&gt; return 0
+    | `Ok len -&gt; return len
+
+  let read inc =
+    let reader = reader inc in
+    Json_of_async.read_json ~reader ()
+
+  let write outc =
+    let writer buf = Writer.write outc buf |&gt; return in
+    Json_of_async.write_json ~writer
+
+end
+
+let run () =
+  Reader.open_file &quot;./asyncdata.json&quot;
+  &gt;&gt;= fun inc -&gt; Json_async.read inc
+  &gt;&gt;= function
+      | Error err -&gt; raise (Failure err)
+      | Ok json -&gt; begin
+          Json_async.write (force Writer.stdout) json
+          &gt;&gt;= fun () -&gt; printf &quot;\n&quot;; shutdown 0 |&gt; return
+        end
+
+let () =
+  ignore (run ());
+  never_returns (Scheduler.go ())</code></pre><h3 id="performance"><a href="#performance" class="anchor"></a>Performance</h3><p>Performance in general is similar to Yojson for reading depending to some extent on the input.</p><p>Writing wise, jsonxt is similar or slightly faster depending on the type of output. Jsonxt optimises integer values in floats and uses integer conversion which is 4-5 times faster. This means there is very little penalty for using <code>`Float</code> to store an integer</p></div></body></html>
