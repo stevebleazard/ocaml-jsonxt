@@ -191,7 +191,6 @@ let rec equal json1 json2 =
   | `Variant (n1, v1), `Variant (n2, v2) -> begin
       match String.compare n1 n2 with
       | 0 -> begin
-        (* match (v1:'a Json_internal.constrained option), (v2:'a option) with *)
         match v1, v2 with
         | Some v1, Some v2 -> equal v1 v2
         | None, None -> true
@@ -199,4 +198,21 @@ let rec equal json1 json2 =
       end
       | _ -> false
     end
+  (* 
+    The following causes some compiler versions, especially 4.11, to go into an
+    infinite loop. Expanding the left hand side appears to resolve this.
+
   | (_:'a Json_internal.constrained), (_:'a Json_internal.constrained) -> false
+  *)
+  | `Null, (_:'a Json_internal.constrained)
+  | `Bool _, (_:'a Json_internal.constrained)
+  | `Int _, (_:'a Json_internal.constrained)
+  | `Intlit _, (_:'a Json_internal.constrained)
+  | `Float _, (_:'a Json_internal.constrained)
+  | `Floatlit _, (_:'a Json_internal.constrained)
+  | `String _, (_:'a Json_internal.constrained)
+  | `Stringlit _, (_:'a Json_internal.constrained)
+  | `Assoc _, (_:'a Json_internal.constrained)
+  | `Tuple _, (_:'a Json_internal.constrained)
+  | `List _, (_:'a Json_internal.constrained)
+  | `Variant _, (_:'a Json_internal.constrained) -> false
